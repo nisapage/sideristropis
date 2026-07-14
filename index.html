@@ -1,0 +1,546 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Simulasi Sideris vs Surya (Orbit Eksagerasi 45°)</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Space+Mono:wght@400;700&display=swap');
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#07071a;--panel:#0d0d28;--border:#1c1c48;
+  --tropic:#ff8c69;--sid:#7eb8f7;--gold:#f5d76e;
+  --earth:#4ecb71;--star:#ffffff;
+  --text:#e2e2f0;--muted:#6868a0;
+  --fh:'Space Grotesk',sans-serif;--fm:'Space Mono',monospace;
+}
+body{background:var(--bg);color:var(--text);font-family:var(--fh);min-height:100vh;padding-bottom:3rem}
+.page{max-width:880px;margin:0 auto;padding:1.5rem 1.25rem}
+
+/* Header */
+.eyebrow{font-family:var(--fm);font-size:.65rem;letter-spacing:.2em;color:var(--gold);text-transform:uppercase;margin-bottom:.4rem}
+h1{font-size:clamp(1.4rem,3.5vw,2.2rem);font-weight:700;line-height:1.2;letter-spacing:-.02em;margin-bottom:.4rem}
+h1 em{font-style:normal;color:var(--gold)}
+.sub{color:var(--muted);font-size:.9rem;margin-bottom:1.5rem}
+
+/* Navigation Tabs */
+.tabs{display:flex;gap:.5rem;margin-bottom:1.25rem;flex-wrap:wrap}
+.tab{padding:.5rem 1rem;border-radius:.6rem;border:1px solid var(--border);background:var(--panel);
+     color:var(--muted);font-family:var(--fh);font-size:.82rem;font-weight:600;cursor:pointer;transition:.2s}
+.tab:hover{color:var(--text);border-color:var(--muted)}
+.tab.active{background:var(--gold);color:#07071a;border-color:var(--gold);box-shadow:0 0 15px rgba(245,215,110,.2)}
+
+/* Canvas Card */
+.canvas-card{background:var(--panel);border:1px solid var(--border);border-radius:1.2rem;
+             padding:1.25rem;margin-bottom:1.25rem;position:relative}
+canvas#anim{display:block;width:100%;border-radius:.8rem;background:#04040c;border:1px solid rgba(255,255,255,.05)}
+
+/* Dynamic Status Overlay below canvas */
+.status-bar{background:rgba(255,255,255,.03);border:1px solid var(--border);border-radius:.8rem;
+            padding:.8rem 1rem;margin-top:1rem;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:.8rem}
+.status-text{font-size:.85rem;color:var(--text);font-weight:500}
+.status-text span{color:var(--gold);font-family:var(--fm);font-weight:700}
+
+/* Controls */
+.controls{display:flex;align-items:center;gap:.75rem;margin-top:1rem;flex-wrap:wrap}
+.btn{padding:.55rem 1.2rem;border-radius:.6rem;border:none;cursor:pointer;
+     font-family:var(--fh);font-size:.82rem;font-weight:700;transition:.15s;display:flex;align-items:center;gap:.4rem}
+.btn-play{background:var(--gold);color:#07071a}
+.btn-play:hover{background:#f0cd54;transform:translateY(-1px)}
+.btn-step{background:transparent;color:var(--text);border:1px solid var(--border)}
+.btn-step:hover{border-color:var(--text);background:rgba(255,255,255,.05)}
+
+/* Toggle Exaggeration */
+.mode-toggle{display:flex;align-items:center;background:#04040c;border:1px solid var(--border);border-radius:.6rem;padding:.2rem;margin-left:auto}
+.mode-btn{padding:.35rem .75rem;border-radius:.4rem;border:none;background:transparent;color:var(--muted);
+          font-family:var(--fm);font-size:.7rem;cursor:pointer;transition:.2s;font-weight:700}
+.mode-btn.active{background:var(--border);color:var(--gold)}
+
+.speed-wrap{display:flex;align-items:center;gap:.5rem}
+.speed-wrap label{font-family:var(--fm);font-size:.65rem;color:var(--muted);letter-spacing:.1em}
+input[type=range]#spd{width:70px;accent-color:var(--gold)}
+
+/* Explanation Box */
+.explain{background:var(--panel);border:1px solid var(--border);border-radius:1.2rem;padding:1.5rem;margin-bottom:1.25rem}
+.explain h2{font-size:1.1rem;font-weight:700;margin-bottom:.6rem;color:#fff;display:flex;align-items:center;gap:.5rem}
+.explain p{font-size:.9rem;color:#b0b0cc;line-height:1.65;margin-bottom:.75rem}
+.explain p:last-child{margin-bottom:0}
+.highlight-box{background:rgba(245,215,110,.08);border-left:4px solid var(--gold);
+               border-radius:0 .6rem .6rem 0;padding:.8rem 1rem;margin:1rem 0}
+.highlight-box p{color:var(--gold)!important;font-family:var(--fm);font-size:.82rem!important;font-weight:700;margin:0}
+
+/* Legend */
+.legend{display:flex;gap:1.25rem;flex-wrap:wrap;margin-top:1rem;padding-top:.8rem;border-top:1px dashed var(--border)}
+.li{display:flex;align-items:center;gap:.5rem;font-size:.78rem;color:var(--muted)}
+.ld{width:16px;height:3px;border-radius:2px}
+.lc{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+
+/* Clocks Grid */
+.clocks{display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1.25rem}
+@media(max-width:600px){.clocks{grid-template-columns:1fr}; .mode-toggle{margin-left:0;width:100%;justify-content:center}}
+.clock-card{background:var(--panel);border:1px solid var(--border);border-radius:1rem;padding:1.2rem}
+.clock-card.sid{border-top:4px solid var(--sid)}
+.clock-card.sol{border-top:4px solid var(--tropic)}
+.ck-label{font-family:var(--fm);font-size:.65rem;letter-spacing:.15em;text-transform:uppercase;margin-bottom:.3rem;font-weight:700}
+.sid .ck-label{color:var(--sid)}.sol .ck-label{color:var(--tropic)}
+.ck-name{font-size:.95rem;font-weight:700;margin-bottom:.5rem;color:#fff}
+.ck-time{font-family:var(--fm);font-size:1.8rem;font-weight:700;line-height:1;margin-bottom:.4rem}
+.sid .ck-time{color:var(--sid)}.sol .ck-time{color:var(--tropic)}
+.ck-sub{font-size:.8rem;color:var(--muted);line-height:1.4}
+</style>
+</head>
+<body>
+<div class="page">
+
+<div class="eyebrow">Simulasi Astronomi · Presisi Waktu</div>
+<h1>Mengapa Hari Surya ≠ Hari Sideris? <em>(Selisih ~4 Menit)</em></h1>
+<p class="sub">Visualisasi interaktif dengan orbit eksagerasi (45°) agar garis sejajar & pergeseran sudut terlihat sangat jelas.</p>
+
+<div class="tabs">
+  <button class="tab" data-step="0">① Rotasi Murni</button>
+  <button class="tab active" data-step="1">② Bumi + Orbit (Eksagerasi 45°)</button>
+  <button class="tab" data-step="2">③ Geometri Selisih Waktu</button>
+  <button class="tab" data-step="3">④ Simulasi Jam Real-Time</button>
+</div>
+
+<div class="canvas-card">
+  <canvas id="anim" height="420"></canvas>
+  
+  <!-- Status bar terpisah agar tidak overlap dengan grafis di canvas -->
+  <div class="status-bar" id="statusBar">
+    <div class="status-text">Status Rotasi: <span id="statRot">0°</span></div>
+    <div class="status-text">Pergerakan Orbit: <span id="statOrb">0°</span></div>
+    <div class="status-text">Kondisi: <span id="statCond">Memulai rotasi...</span></div>
+  </div>
+
+  <div class="controls">
+    <button class="btn btn-play" id="btnPlay">▶ Play</button>
+    <button class="btn btn-step" id="btnReset">↺ Reset</button>
+    
+    <div class="mode-toggle" id="modeWrap">
+      <button class="mode-btn active" data-deg="45">Mode 45° (Eksagerasi)</button>
+      <button class="mode-btn" data-deg="1">Mode 1° (Nyata)</button>
+    </div>
+
+    <div class="speed-wrap">
+      <label>SPEED</label>
+      <input type="range" id="spd" min="1" max="10" value="5">
+    </div>
+  </div>
+  <div class="legend" id="legend"></div>
+</div>
+
+<div class="clocks" id="clocksRow" style="display:none">
+  <div class="clock-card sid">
+    <div class="ck-label">Hari Sideris (Bintang)</div>
+    <div class="ck-name">Rotasi 360° Murni</div>
+    <div class="ck-time" id="ckSid">00:00:00</div>
+    <div class="ck-sub" id="ckSidSub">Acuan bintang jauh kembali ke titik semula persis dalam 86.164 detik.</div>
+  </div>
+  <div class="clock-card sol">
+    <div class="ck-label">Hari Surya / Tropis (Matahari)</div>
+    <div class="ck-name">Rotasi 360° + <span id="txtExtraDeg">45°</span></div>
+    <div class="ck-time" id="ckSol">00:00:00</div>
+    <div class="ck-sub" id="ckSolSub">Matahari kembali ke titik tertinggi (siang hari) setelah rotasi tambahan.</div>
+  </div>
+</div>
+
+<div class="explain" id="explainBox"></div>
+
+</div>
+
+<script>
+const canvas = document.getElementById('anim');
+const ctx = canvas.getContext('2d');
+
+let step = 1; // Default ke step 2 (index 1) sesuai request
+let playing = false;
+let progress = 0; 
+let raf;
+let lastTs = null;
+let spd = 5;
+let EXTRA_DEG = 45; // Default eksagerasi 45 derajat!
+
+const SID_DAY_SEC = 86164.1;   // 23j 56m 4.1s
+const SOL_DAY_SEC = 86400;     // 24j 00m 00s
+
+function resize() {
+  const dpr = window.devicePixelRatio || 1;
+  const w = canvas.parentElement.clientWidth - 40;
+  const h = Math.min(w * 0.65, 420);
+  canvas.width = w * dpr;
+  canvas.height = h * dpr;
+  canvas.style.width = w + 'px';
+  canvas.style.height = h + 'px';
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+}
+resize();
+window.addEventListener('resize', () => { resize(); draw(); });
+
+function W(){ return canvas.width / (window.devicePixelRatio||1); }
+function H(){ return canvas.height / (window.devicePixelRatio||1); }
+
+// ── Helpers ──
+function drawStarBg() {
+  const w = W(), h = H();
+  const seed = [[0.05,0.1],[0.15,0.07],[0.28,0.18],[0.72,0.05],[0.85,0.12],[0.92,0.25],[0.08,0.75],[0.18,0.88],[0.88,0.72],[0.95,0.85],[0.42,0.08],[0.60,0.12],[0.78,0.92],[0.30,0.90],[0.55,0.95],[0.12,0.50],[0.90,0.50],[0.50,0.04],[0.65,0.80],[0.35,0.60]];
+  for(const [fx,fy] of seed){
+    ctx.beginPath();
+    ctx.arc(fx*w, fy*h, 1.2, 0, Math.PI*2);
+    ctx.fillStyle = 'rgba(255,255,255,0.4)';
+    ctx.fill();
+  }
+}
+
+function drawSun(x, y, r){
+  const g = ctx.createRadialGradient(x,y,0,x,y,r*2.5);
+  g.addColorStop(0,'rgba(255,200,50,.35)');
+  g.addColorStop(1,'rgba(255,200,50,0)');
+  ctx.fillStyle=g; ctx.beginPath(); ctx.arc(x,y,r*2.5,0,Math.PI*2); ctx.fill();
+  const g2 = ctx.createRadialGradient(x-r*.2,y-r*.2,r*.05,x,y,r);
+  g2.addColorStop(0,'#fff8c0'); g2.addColorStop(.6,'#f5c842'); g2.addColorStop(1,'#d48800');
+  ctx.fillStyle=g2; ctx.beginPath(); ctx.arc(x,y,r,0,Math.PI*2); ctx.fill();
+}
+
+function drawEarth(x, y, r, axisAngle=0, isGhost=false){
+  ctx.save();
+  if(isGhost) ctx.globalAlpha = 0.25;
+  
+  // Aura
+  const g = ctx.createRadialGradient(x,y,0,x,y,r*1.8);
+  g.addColorStop(0,'rgba(78,203,113,.2)'); g.addColorStop(1,'rgba(78,203,113,0)');
+  ctx.fillStyle=g; ctx.beginPath(); ctx.arc(x,y,r*1.8,0,Math.PI*2); ctx.fill();
+  
+  // Body
+  const g2=ctx.createRadialGradient(x-r*.2,y-r*.2,r*.1,x,y,r);
+  g2.addColorStop(0,'#a8f0c0'); g2.addColorStop(.5,'#4ecb71'); g2.addColorStop(1,'#1a6030');
+  ctx.fillStyle=g2; ctx.beginPath(); ctx.arc(x,y,r,0,Math.PI*2); ctx.fill();
+  
+  // Marker/Sumbu penunjuk (Pengamat di Bumi)
+  ctx.translate(x,y); ctx.rotate(axisAngle);
+  ctx.strokeStyle = isGhost ? 'rgba(255,255,255,.4)' : '#ffffff';
+  ctx.lineWidth = 2.5;
+  ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(0, -r*1.4); ctx.stroke();
+  
+  // Titik pengamat (merah/emas)
+  ctx.beginPath(); ctx.arc(0, -r*1.4, 3, 0, Math.PI*2);
+  ctx.fillStyle = isGhost ? '#aaa' : '#f5d76e'; ctx.fill();
+  
+  ctx.restore();
+}
+
+function drawArc(cx, cy, r, startA, endA, color, width=2.5, dashed=false){
+  ctx.save();
+  ctx.strokeStyle=color; ctx.lineWidth=width;
+  if(dashed) ctx.setLineDash([4,4]);
+  ctx.beginPath(); ctx.arc(cx,cy,r,startA,endA); ctx.stroke();
+  ctx.restore();
+}
+
+// ────────────────────────────────────────────
+// STEP 1: Bumi + Orbit (EKSAGERASI 45°)
+// ────────────────────────────────────────────
+function drawStep1(p){
+  const w=W(), h=H();
+  const sunX = w*0.28, sunY = h*0.58;
+  const orbitRx = w*0.22, orbitRy = h*0.28;
+  const earthR = Math.min(w,h)*0.06;
+
+  ctx.clearRect(0,0,w,h);
+  drawStarBg();
+
+  // Orbit ellipse
+  drawArc(sunX, sunY, orbitRx, 0, Math.PI*2, 'rgba(255,255,255,.15)', 1.5, true);
+  drawSun(sunX, sunY, Math.min(w,h)*0.06);
+
+  // Perhitungan Sudut Orbit
+  const startAngle = -Math.PI/2; // Top of orbit
+  const maxOrbitRad = EXTRA_DEG * Math.PI / 180;
+  const curOrbitAngle = startAngle + (p * maxOrbitRad);
+  
+  // Posisi Bumi Awal (0%)
+  const ex0 = sunX + Math.cos(startAngle)*orbitRx;
+  const ey0 = sunY + Math.sin(startAngle)*orbitRy;
+  
+  // Posisi Bumi Saat Ini
+  const ex = sunX + Math.cos(curOrbitAngle)*orbitRx;
+  const ey = sunY + Math.sin(curOrbitAngle)*orbitRy;
+
+  // 1. GARIS BINTANG ACUAN (Jauh di kanan, sejajar/paralel)
+  const starX = w*0.92, starY = ey0;
+  ctx.beginPath(); ctx.arc(starX, starY, 6, 0, Math.PI*2); ctx.fillStyle='#fff'; ctx.fill();
+  ctx.font='700 11px Space Grotesk'; ctx.fillStyle='#fff'; ctx.textAlign='right';
+  ctx.fillText('★ Bintang Acuan (Jarak Tak Hingga)', starX - 12, starY + 4);
+
+  // Garis bantu Sideris (Awal) -> horizontal lurus ke kanan
+  ctx.save(); ctx.strokeStyle='rgba(126,184,247,.3)'; ctx.lineWidth=1.5; ctx.setLineDash([4,4]);
+  ctx.beginPath(); ctx.moveTo(ex0, ey0); ctx.lineTo(starX, starY); ctx.stroke(); ctx.restore();
+
+  // Garis bantu Sideris (Saat ini - PARALEL DENGAN AWAL)
+  ctx.save(); ctx.strokeStyle='#7eb8f7'; ctx.lineWidth=2; ctx.setLineDash([6,4]);
+  ctx.beginPath(); ctx.moveTo(ex, ey); ctx.lineTo(w*0.95, ey); ctx.stroke(); ctx.restore();
+  ctx.font='600 10px Space Mono'; ctx.fillStyle='#7eb8f7'; ctx.textAlign='right';
+  ctx.fillText('Garis Sejajar Sideris (360° Rotasi)', w*0.95, ey - 8);
+
+  // 2. GARIS SURYA (Menunjuk tepat ke pusat Matahari)
+  ctx.save(); ctx.strokeStyle='#ff8c69'; ctx.lineWidth=2;
+  ctx.beginPath(); ctx.moveTo(ex, ey); ctx.lineTo(sunX, sunY); ctx.stroke(); ctx.restore();
+
+  // 3. VISUALISASI SUDUT SELISIH (DEFISIT ROTASI)
+  if(p > 0.1){
+    const angleToSun = Math.atan2(sunY - ey, sunX - ex);
+    const angleToStar = 0; // Horizontal ke kanan (0 rad)
+    
+    // Gambar busur selisih di dekat Bumi
+    ctx.save();
+    ctx.strokeStyle = '#f5d76e'; ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.arc(ex, ey, earthR*1.6, angleToSun, angleToStar);
+    ctx.stroke();
+    ctx.restore();
+
+    // Label selisih sudut
+    ctx.font='700 11px Space Mono'; ctx.fillStyle='#f5d76e'; ctx.textAlign='left';
+    ctx.fillText(`Δ Sudut: ${(p*EXTRA_DEG).toFixed(1)}°`, ex + earthR*1.8, ey + 15);
+  }
+
+  // Draw Bumi (Ghost Awal)
+  drawEarth(ex0, ey0, earthR, 0, true);
+  
+  // Draw Bumi Aktif (Berputar 360° selama orbit p)
+  // Saat p=1, bumi berputar tepat 360° -> jarum menunjuk lurus ke atas/horizontal paralel!
+  const earthRot = p * Math.PI * 2; 
+  drawEarth(ex, ey, earthR, earthRot);
+
+  // Orbit progress arc
+  ctx.save(); ctx.strokeStyle='#ff8c69'; ctx.lineWidth=4;
+  ctx.beginPath(); ctx.ellipse(sunX, sunY, orbitRx, orbitRy, 0, startAngle, curOrbitAngle); ctx.stroke();
+  ctx.restore();
+
+  // Update Status Overlay
+  document.getElementById('statRot').textContent = `${(p*360).toFixed(0)}° (Sideris)`;
+  document.getElementById('statOrb').textContent = `+${(p*EXTRA_DEG).toFixed(1)}° Revolusi`;
+  
+  const condEl = document.getElementById('statCond');
+  if(p < 1){
+    condEl.textContent = "Bumi berotasi & mengorbit bersamaan...";
+    condEl.style.color = "#e2e2f0";
+  } else {
+    condEl.textContent = `Rotasi 360° Selesai! Tapi Matahari melenceng ${EXTRA_DEG}°!`;
+    condEl.style.color = "#f5d76e";
+  }
+}
+
+// ────────────────────────────────────────────
+// STEP 0: Rotasi Murni
+// ────────────────────────────────────────────
+function drawStep0(p){
+  const w=W(), h=H(), cx=w/2, cy=h/2;
+  const earthR=Math.min(w,h)*0.12;
+  ctx.clearRect(0,0,w,h); drawStarBg();
+
+  const starX=w*0.85, starY=cy;
+  ctx.beginPath(); ctx.arc(starX,starY,6,0,Math.PI*2); ctx.fillStyle='#fff'; ctx.fill();
+  ctx.font='700 12px Space Grotesk'; ctx.fillStyle='#fff'; ctx.textAlign='center';
+  ctx.fillText('★ Bintang Acuan Jauh', starX, starY-15);
+
+  ctx.save(); ctx.strokeStyle='#7eb8f7'; ctx.lineWidth=2; ctx.setLineDash([6,6]);
+  ctx.beginPath(); ctx.moveTo(cx,cy); ctx.lineTo(starX,starY); ctx.stroke(); ctx.restore();
+
+  const rot = p * Math.PI * 2;
+  drawArc(cx, cy, earthR*1.6, -Math.PI/2, -Math.PI/2 + rot, '#7eb8f7', 3);
+  drawEarth(cx, cy, earthR, rot + Math.PI/2);
+
+  document.getElementById('statRot').textContent = `${(p*360).toFixed(0)}°`;
+  document.getElementById('statOrb').textContent = `0° (Diam)`;
+  document.getElementById('statCond').textContent = p>=1 ? "Satu Hari Sideris Tepat 360°!" : "Berputar mengacu pada bintang...";
+}
+
+// ────────────────────────────────────────────
+// STEP 2: Geometri Selisih Waktu
+// ────────────────────────────────────────────
+function drawStep2(p){
+  const w=W(), h=H();
+  ctx.clearRect(0,0,w,h); drawStarBg();
+
+  const lx=w*0.28, rx=w*0.72, cy=h*0.48;
+  const orbitR=Math.min(w,h)*0.22, earthR=Math.min(w,h)*0.055, sunR=Math.min(w,h)*0.045;
+
+  // KIRI: SIDERIS (360° Tepat)
+  drawSun(lx, cy, sunR);
+  const lAngle = -Math.PI/2 + (EXTRA_DEG*Math.PI/180);
+  const lex = lx + Math.cos(lAngle)*orbitR, ley = cy + Math.sin(lAngle)*orbitR;
+  drawArc(lx, cy, orbitR, -Math.PI/2, lAngle, 'rgba(255,255,255,.2)', 2, true);
+  drawEarth(lex, ley, earthR, 0); // 360° rot = 0° angle
+
+  ctx.save(); ctx.strokeStyle='#7eb8f7'; ctx.lineWidth=2; ctx.setLineDash([5,5]);
+  ctx.beginPath(); ctx.moveTo(lex, ley); ctx.lineTo(lex+100, ley); ctx.stroke(); ctx.restore();
+  ctx.font='700 12px Space Grotesk'; ctx.fillStyle='#7eb8f7'; ctx.textAlign='center';
+  ctx.fillText('HARI SIDERIS (360° Rotasi)', lx, cy+orbitR+30);
+  ctx.font='400 11px Space Mono'; ctx.fillText('Sejajar Bintang (23j 56m)', lx, cy+orbitR+48);
+
+  // KANAN: SURYA (+EXTRA_DEG)
+  drawSun(rx, cy, sunR);
+  const rex = rx + Math.cos(lAngle)*orbitR, rey = cy + Math.sin(lAngle)*orbitR;
+  drawArc(rx, cy, orbitR, -Math.PI/2, lAngle, 'rgba(255,255,255,.2)', 2, true);
+  
+  // Rotasi tambahan animasi p dari 0 sampai EXTRA_DEG
+  const extraRotRad = p * (EXTRA_DEG * Math.PI/180);
+  drawEarth(rex, rey, earthR, extraRotRad);
+
+  ctx.save(); ctx.strokeStyle='#ff8c69'; ctx.lineWidth=2;
+  ctx.beginPath(); ctx.moveTo(rex, rey); ctx.lineTo(rx, cy); ctx.stroke(); ctx.restore();
+  
+  drawArc(rex, rey, earthR*1.7, -Math.PI/2, -Math.PI/2 + extraRotRad, '#ff8c69', 3);
+
+  ctx.font='700 12px Space Grotesk'; ctx.fillStyle='#ff8c69'; ctx.textAlign='center';
+  ctx.fillText('HARI SURYA (360° + Δ°)', rx, cy+orbitR+30);
+  ctx.font='400 11px Space Mono'; ctx.fillText('Sejajar Matahari (24j 00m)', rx, cy+orbitR+48);
+
+  document.getElementById('statRot').textContent = `360° + ${(p*EXTRA_DEG).toFixed(1)}°`;
+  document.getElementById('statOrb').textContent = `Revolusi ${EXTRA_DEG}°`;
+  document.getElementById('statCond').textContent = p>=1 ? "Matahari kembali ke puncak siang (Zenight)!" : "Mengejar defisit sudut orbit...";
+}
+
+// ────────────────────────────────────────────
+// STEP 3: Jam Real-Time
+// ────────────────────────────────────────────
+function drawStep3(p){
+  const w=W(), h=H(), cx=w*0.35, cy=h*0.52;
+  const orbitR=Math.min(w,h)*0.32, earthR=Math.min(w,h)*0.065;
+  ctx.clearRect(0,0,w,h); drawStarBg();
+
+  drawSun(cx, cy, Math.min(w,h)*0.06);
+  const curOrb = -Math.PI/2 + p*(EXTRA_DEG*Math.PI/180);
+  const ex = cx + Math.cos(curOrb)*orbitR, ey = cy + Math.sin(curOrb)*orbitR;
+  
+  drawArc(cx, cy, orbitR, -Math.PI/2, curOrb, 'rgba(255,255,255,.2)', 2, true);
+
+  // Pada p=1, bumi berputar 360° + EXTRA_DEG
+  const totalRot = p * (Math.PI*2 + (EXTRA_DEG*Math.PI/180));
+  drawEarth(ex, ey, earthR, totalRot);
+
+  ctx.save(); ctx.strokeStyle='#7eb8f7'; ctx.lineWidth=1.5; ctx.setLineDash([4,4]);
+  ctx.beginPath(); ctx.moveTo(ex, ey); ctx.lineTo(w, ey); ctx.stroke(); ctx.restore();
+
+  ctx.save(); ctx.strokeStyle='#ff8c69'; ctx.lineWidth=1.5;
+  ctx.beginPath(); ctx.moveTo(ex, ey); ctx.lineTo(cx, cy); ctx.stroke(); ctx.restore();
+
+  const sidSec = Math.min(SID_DAY_SEC, p * SID_DAY_SEC * (1 + EXTRA_DEG/360));
+  const solSec = p * SOL_DAY_SEC;
+  const pad=n=>String(Math.floor(n)).padStart(2,'0');
+  
+  document.getElementById('ckSid').textContent = `${pad(sidSec/3600)}:${pad((sidSec%3600)/60)}:${pad(sidSec%60)}`;
+  document.getElementById('ckSol').textContent = `${pad(solSec/3600)}:${pad((solSec%3600)/60)}:${pad(solSec%60)}`;
+
+  document.getElementById('statRot').textContent = `${(p*(360+EXTRA_DEG)).toFixed(0)}°`;
+  document.getElementById('statOrb').textContent = `+${(p*EXTRA_DEG).toFixed(1)}°`;
+  document.getElementById('statCond').textContent = "Perbandingan jam secara langsung...";
+}
+
+// ── UI Legends & Explanations ──
+const legends = [
+  `<div class="li"><div class="lc" style="background:var(--earth)"></div>Bumi & Sumbu Pengamat</div><div class="li"><div class="ld" style="background:var(--sid)"></div>Garis Acuan Bintang (Paralel)</div>`,
+  `<div class="li"><div class="lc" style="background:var(--earth)"></div>Bumi (Samar = Posisi 0h)</div><div class="li"><div class="ld" style="background:var(--sid)"></div>Garis Bintang Sejajar (Sideris)</div><div class="li"><div class="ld" style="background:var(--tropic)"></div>Garis Matahari (Surya)</div><div class="li"><div class="ld" style="background:var(--gold)"></div>Δ Sudut Defisit</div>`,
+  `<div class="li"><div class="ld" style="background:var(--sid)"></div>Kiri: Selesai di 360° (Sideris)</div><div class="li"><div class="ld" style="background:var(--tropic)"></div>Kanan: Butuh Rotasi Tambahan Δ° (Surya)</div>`,
+  `<div class="li"><div class="ld" style="background:var(--sid)"></div>Acuan Bintang (Lebih Cepat Selesai)</div><div class="li"><div class="ld" style="background:var(--tropic)"></div>Acuan Matahari (24 Jam Penuh)</div>`
+];
+
+function updateExplain(){
+  const degTxt = EXTRA_DEG === 45 ? "45° (Eksagerasi Visual)" : "~1° (Nyata / Realis)";
+  const timeTxt = EXTRA_DEG === 45 ? "3 jam" : "~4 menit (tepatnya 3m 56s)";
+
+  const explains = [
+    `<h2>① Apa itu Hari Sideris?</h2>
+     <p>Satu <strong>Hari Sideris</strong> adalah waktu yang dibutuhkan Bumi untuk berputar <strong>tepat 360° pada sumbunya</strong> terhadap bintang jauh yang posisinya dianggap statis.</p>
+     <div class="highlight-box"><p>1 Hari Sideris = 23 Jam 56 Menit 4.1 Detik (360° Rotasi)</p></div>`,
+
+    `<h2>② Mengapa Matahari "Bergeser"? (Mode ${degTxt})</h2>
+     <p>Saat Bumi berputar 360°, Bumi <em>juga bergerak maju</em> mengelilingi Matahari. Pada mode <strong>${degTxt}</strong> ini, kamu bisa melihat jelas bahwa saat penunjuk Bumi sudah kembali sejajar horizontal dengan bintang acuan (garis biru putus-putus), <strong>Matahari tertinggal di belakang!</strong></p>
+     <p>Garis biru (Sideris) dan garis oranye (Surya) membentuk sudut selisih yang nyata. Bumi <strong>wajib berputar ekstra</strong> sebesar sudut tersebut agar matahari kembali tepat berada di atas kepala.</p>
+     <div class="highlight-box"><p>Revolusi ${degTxt} menghasilkan defisit rotasi yang harus dikejar oleh Bumi!</p></div>`,
+
+    `<h2>③ Geometri Pembuktian Selisih Waktu</h2>
+     <p>Pada dunia nyata, Bumi bergerak sekitar <strong>0,9856° per hari</strong> (360° ÷ 365,25 hari) di orbitnya. Untuk mengejar kekeringan sudut ini, Bumi butuh waktu berputar tambahan sekitar <strong>3 menit 56 detik (~4 menit)</strong>.</p>
+     <p>Inilah alasannya mengapa kalender yang kita pakai (Kalender Surya/Tropis) panjangnya 24 jam tepat, sedangkan rotasi murni bumi hanyalah 23 jam 56 menit!</p>
+     <div class="highlight-box"><p>Hari Surya (24j) = Hari Sideris (23j 56m) + Waktu Kejar Orbit (~4m)</p></div>`,
+
+    `<h2>④ Balapan Waktu: Sideris vs Surya</h2>
+     <p>Jika kamu mengamati langit dengan jam Sideris, bintang-bintang akan terbit di detik yang persis sama setiap harinya. Namun, jika kamu memakai jam Sideris untuk aktivitas harian, dalam waktu 6 bulan siang hari akan berubah menjadi tengah malam!</p>
+     <div class="highlight-box"><p>Dalam 1 tahun tropis (365,25 hari surya), Bumi sebenarnya berotasi sebanyak 366,25 kali!</p></div>`
+  ];
+
+  document.getElementById('legend').innerHTML = legends[step];
+  document.getElementById('explainBox').innerHTML = explains[step];
+  document.getElementById('clocksRow').style.display = step === 3 ? 'grid' : 'none';
+  document.getElementById('modeWrap').style.display = (step === 1 || step === 2 || step === 3) ? 'flex' : 'none';
+  if(document.getElementById('txtExtraDeg')) document.getElementById('txtExtraDeg').textContent = `${EXTRA_DEG}°`;
+}
+
+function draw(){
+  if(step === 0) drawStep0(progress);
+  else if(step === 1) drawStep1(progress);
+  else if(step === 2) drawStep2(progress);
+  else if(step === 3) drawStep3(progress);
+}
+
+const ANIM_DUR = [3, 5, 4, 6];
+function loop(ts){
+  if(!playing) return;
+  if(!lastTs) lastTs = ts;
+  const dt = (ts - lastTs) / 1000;
+  lastTs = ts;
+  progress = Math.min(1, progress + dt * (spd/5) / ANIM_DUR[step]);
+  draw();
+  if(progress >= 1){ 
+    playing = false; 
+    document.getElementById('btnPlay').innerHTML = '▶ Play'; 
+    return; 
+  }
+  raf = requestAnimationFrame(loop);
+}
+
+// ── Event Listeners ──
+document.getElementById('btnPlay').addEventListener('click', () => {
+  playing = !playing;
+  document.getElementById('btnPlay').innerHTML = playing ? '⏸ Pause' : '▶ Play';
+  if(playing){ lastTs = null; raf = requestAnimationFrame(loop); }
+});
+
+document.getElementById('btnReset').addEventListener('click', () => {
+  playing = false; progress = 0;
+  document.getElementById('btnPlay').innerHTML = '▶ Play';
+  cancelAnimationFrame(raf); draw();
+});
+
+document.getElementById('spd').addEventListener('input', e => spd = +e.target.value);
+
+document.querySelectorAll('.tab').forEach(t => {
+  t.addEventListener('click', () => {
+    document.querySelectorAll('.tab').forEach(x => x.classList.remove('active'));
+    t.classList.add('active');
+    step = +t.dataset.step;
+    playing = false; progress = 0;
+    document.getElementById('btnPlay').innerHTML = '▶ Play';
+    cancelAnimationFrame(raf);
+    updateExplain(); draw();
+  });
+});
+
+document.querySelectorAll('.mode-btn').forEach(b => {
+  b.addEventListener('click', () => {
+    document.querySelectorAll('.mode-btn').forEach(x => x.classList.remove('active'));
+    b.classList.add('active');
+    EXTRA_DEG = +b.dataset.deg;
+    progress = 0; playing = false;
+    document.getElementById('btnPlay').innerHTML = '▶ Play';
+    cancelAnimationFrame(raf);
+    updateExplain(); draw();
+  });
+});
+
+// Init
+updateExplain(); draw();
+</script>
+</body>
+</html>
